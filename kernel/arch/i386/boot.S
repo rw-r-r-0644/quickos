@@ -16,18 +16,18 @@
 
 .align 4096
 
-# Reserve a page table and a page directory for higher half boot
-boot_page_directory:
-.skip 4096
-boot_page_table1:
-.skip 4096
-
 # Reserve a stack for the initial thread.
 stack_bottom:
 .skip 16384
 stack_top:
 
 .section .data
+
+# Reserve a page table and a page directory for higher half boot
+boot_page_directory:
+.zero 4096
+boot_page_table1:
+.zero 4096
 
 # GDT
 .align 4096
@@ -63,32 +63,24 @@ _start:
 	movw %ax, %fs
 	movw %ax, %gs
 
-	# Clear bss
-	movl $(_kernel_bss_start - 0xC0000000), %edi
-2:	movl $0, (%edi)
-	addl $4, %edi
-	cmpl $(_kernel_bss_end - 0xC0000000), %edi
-	jg 2b
-
-
 	# Setup boot page table
 	movl $(boot_page_table1 - 0xC0000000), %edi
 	movl $0, %esi
 	movl $1023, %ecx
-3:	cmpl $(_kernel_start - 0xC0000000), %esi
-	jl 5f
+2:	cmpl $(_kernel_start - 0xC0000000), %esi
+	jl 4f
 	cmpl $(_kernel_end - 0xC0000000), %esi
-	jge 6f
+	jge 5f
 	movl %esi, %edx
 	orl $1, %edx
 	cmpl $_kernel_rw_start, %esi
-	jl 4f
+	jl 3f
 	orl $2, %edx
-4:	movl %edx, (%edi)
-5:	addl $4096, %esi
+3:	movl %edx, (%edi)
+4:	addl $4096, %esi
 	addl $4, %edi
-	loop 3b
-6:
+	loop 2b
+5:
 	# Map VGA buffer
 	movl $(0xB8000 + 0x3), boot_page_table1 - 0xC0000000 + 1023 * 4
 
@@ -107,8 +99,8 @@ _start:
 
 	# Load new GDT and jump to higher half
 	lgdt gdtr
-	ljmp $0x08, $7f
-7:	movw $0x10, %ax
+	ljmp $0x08, $6f
+6:	movw $0x10, %ax
 	movw %ax, %ds
 	movw %ax, %ss
 	movw %ax, %es
@@ -121,15 +113,14 @@ _start:
 	# Setup stack.
 	movl $stack_top, %esp
 
-	# TODO: Global constructors provoke a triple fault
 	# Call the global constructors.
-	#call _init
+	call _init
 
 	# Transfer control to the main kernel.
 	call kernel_main
 
 	# Hang if kernel_main unexpectedly returns.
 	cli
-1:	hlt
-	jmp 1b
+7:	hlt
+	jmp 7b
 .size _start, . - _start
