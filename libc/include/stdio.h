@@ -2,6 +2,8 @@
 #define _STDIO_H 1
 
 #include <sys/cdefs.h>
+#include <stdarg.h>
+#include <string.h>
 
 #define EOF (-1)
 
@@ -12,6 +14,9 @@ extern "C" {
 int printf(const char* __restrict, ...);
 int putchar(int);
 int puts(const char*);
+int snprintf(char*, size_t, const char* __restrict, ...);
+int vprintf(const char* __restrict, va_list);
+int vsnprintf(char*, size_t, const char* __restrict, va_list);
 
 #ifdef __cplusplus
 }
